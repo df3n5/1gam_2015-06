@@ -20,12 +20,13 @@ import com.badlogic.gdx.graphics.g3d.utils.CameraInputController
 import com.badlogic.gdx.graphics.g3d.utils.FirstPersonCameraController
 import com.badlogic.gdx.math.Vector3 
 import com.badlogic.gdx.math.Matrix4 
-
-
+import com.badlogic.gdx.assets.AssetManager 
+import com.badlogic.gdx.graphics.g3d.Model 
 
 class GameScreen (game: GameMain) extends Screen {
   //Config
-  val ColorStretchLength = 10.0f
+  val ColorStretchLength = 100.0f
+  val ItemXDistance = 100.0f
   val Speed = 1.0f
   val DebugCamera = false
   val MovementAmount = 10.0f
@@ -54,58 +55,83 @@ class GameScreen (game: GameMain) extends Screen {
       new Material(ColorAttribute.createDiffuse(Color.RED)),
       Usage.Position | Usage.Normal)
   for (i <- 0 to 200 if i % 2 == 0) {
-    //println(s"i is $i ${-ColorStretchLength * i}")
     lazy val blueGroundModelInstance = new ModelInstance(blueGroundModel, new Vector3(-ColorStretchLength * i, -2.6f, 0))
     lazy val redGroundModelInstance = new ModelInstance(redGroundModel, new Vector3(-ColorStretchLength * (i+1), -2.6f, 0))
-    //blueGroundModelInstance.transform.translate(-ColorStretchLength * i, 0f, 0f)
-    //redGroundModelInstance.transform.translate(-ColorStretchLength * (i+1), 0f, 0f)
     groundModels += blueGroundModelInstance
     groundModels += redGroundModelInstance
   }
-  //lazy val groundModel = modelBuilder.createLineGrid(10, 10, 1000.0f, 1000.0f, new Material(ColorAttribute.createDiffuse(Color.BLUE)), Usage.Position | Usage.Normal)
+  lazy val itemModelIns = ArrayBuffer[ModelInstance]()
 
   lazy val modelBatch = new ModelBatch()
   lazy val environment = new Environment()
   environment.set(new ColorAttribute(ColorAttribute.AmbientLight, 0.4f, 0.4f, 0.4f, 1f))
   environment.add(new DirectionalLight().set(0.8f, 0.8f, 0.8f, -1f, -0.8f, -0.2f))
 
+  val assets = new AssetManager()
+  assets.load("item.g3db", classOf[Model])
+  var loading = true
+  var itemInstance : ModelInstance = null
+
   lazy val camController = new FirstPersonCameraController(camera)
   if(DebugCamera) {
     Gdx.input.setInputProcessor(camController)
   }
   var playerZ = 0.0f
+  Gdx.gl.glClearColor(135/255f, 206/255f, 235/255f, 1)
+
+  def doneLoading() : Unit = {
+    println("Finished loading")
+    val model = assets.get("item.g3db", classOf[Model])
+    //itemInstance = new ModelInstance(model, "item")
+    for (i <- 0 to 100) {
+      itemInstance = new ModelInstance(model, "item")
+      //itemInstance.transform.setToTranslation(-ItemXDistance * i, 0, -1.0f)
+      //itemInstance.transform.setToTranslation(-ItemXDistance * i, 0, -11.0f)
+      itemInstance.transform.setToTranslation(-ItemXDistance * i, 0, 9.0f)
+      itemModelIns += itemInstance
+    }
+    loading = false
+  }
 
   override def render(delta: Float): Unit = {
-
-    if(Gdx.input.isKeyPressed(Keys.D) && !Gdx.input.isKeyPressed(Keys.A)) {
-      playerZ  = -MovementAmount
-    } else if(Gdx.input.isKeyPressed(Keys.A) && !Gdx.input.isKeyPressed(Keys.D)) {
-      playerZ  = MovementAmount
-    } else if(!Gdx.input.isKeyPressed(Keys.A) && !Gdx.input.isKeyPressed(Keys.D)) {
-      playerZ  = 0.0f
-    }
-
-    playerModelInstance.transform.translate(-Speed, 0, 0)
-    
-    if(DebugCamera) {
-      camController.update()
+    if (loading) { 
+      if(assets.update()) doneLoading()
     } else {
-      camera.translate(-Speed, 0, 0)
-      camera.position.z = playerZ
-      playerModelInstance.transform.`val`(Matrix4.M23) = playerZ
-      camera.update()
-    }
 
-    //camera.update()
-    Gdx.gl.glViewport(0, 0, Gdx.graphics.getWidth(), Gdx.graphics.getHeight())
-    Gdx.gl.glClear(GL20.GL_COLOR_BUFFER_BIT | GL20.GL_DEPTH_BUFFER_BIT)
+      if(Gdx.input.isKeyPressed(Keys.D) && !Gdx.input.isKeyPressed(Keys.A)) {
+        playerZ  = -MovementAmount
+      } else if(Gdx.input.isKeyPressed(Keys.A) && !Gdx.input.isKeyPressed(Keys.D)) {
+        playerZ  = MovementAmount
+      } else if(!Gdx.input.isKeyPressed(Keys.A) && !Gdx.input.isKeyPressed(Keys.D)) {
+        playerZ  = 0.0f
+      }
 
-    modelBatch.begin(camera)
-    modelBatch.render(playerModelInstance, environment)
-    groundModels.foreach { case model =>
-      modelBatch.render(model, environment)
+      playerModelInstance.transform.translate(-Speed, 0, 0)
+      
+      if(DebugCamera) {
+        camController.update()
+      } else {
+        camera.translate(-Speed, 0, 0)
+        camera.position.z = playerZ
+        playerModelInstance.transform.`val`(Matrix4.M23) = playerZ
+        camera.update()
+      }
+
+      //camera.update()
+      Gdx.gl.glViewport(0, 0, Gdx.graphics.getWidth(), Gdx.graphics.getHeight())
+      Gdx.gl.glClear(GL20.GL_COLOR_BUFFER_BIT | GL20.GL_DEPTH_BUFFER_BIT)
+
+      // Model Rendering
+      modelBatch.begin(camera)
+      itemModelIns.foreach { case model =>
+        modelBatch.render(model, environment)
+      }
+      modelBatch.render(playerModelInstance, environment)
+      groundModels.foreach { case model =>
+        modelBatch.render(model, environment)
+      }
+      modelBatch.end()
     }
-    modelBatch.end()
   }
 
   def dispose(): Unit = {
