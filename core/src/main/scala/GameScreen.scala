@@ -69,8 +69,6 @@ class GameScreen (game: GameMain) extends Screen {
   environment.set(new ColorAttribute(ColorAttribute.AmbientLight, 0.4f, 0.4f, 0.4f, 1f))
   environment.add(new DirectionalLight().set(0.8f, 0.8f, 0.8f, -1f, -0.8f, -0.2f))
 
-  //lazy val camController = new CameraInputController(camera)
-  //lazy val camController = new FirstPersonCameraController(camera)
   lazy val camController = new FirstPersonCameraController(camera)
   if(DebugCamera) {
     Gdx.input.setInputProcessor(camController)
@@ -78,25 +76,12 @@ class GameScreen (game: GameMain) extends Screen {
   var playerZ = 0.0f
 
   override def render(delta: Float): Unit = {
-    //camera.position.set(playerPosition)
 
     if(Gdx.input.isKeyPressed(Keys.D) && !Gdx.input.isKeyPressed(Keys.A)) {
       playerZ  = -MovementAmount
-
-      if(Gdx.input.isKeyJustPressed(Keys.D)) {
-        playerModelInstance.transform.translate(0, 0, -MovementAmount)
-      }
     } else if(Gdx.input.isKeyPressed(Keys.A) && !Gdx.input.isKeyPressed(Keys.D)) {
       playerZ  = MovementAmount
-      if(Gdx.input.isKeyJustPressed(Keys.A)) {
-        playerModelInstance.transform.translate(0, 0, MovementAmount)
-      }
     } else if(!Gdx.input.isKeyPressed(Keys.A) && !Gdx.input.isKeyPressed(Keys.D)) {
-      if(playerZ >= 0.1f) {
-        playerModelInstance.transform.translate(0, 0, -MovementAmount)
-      } else if (playerZ <= -0.1f) {
-        playerModelInstance.transform.translate(0, 0, MovementAmount)
-      }
       playerZ  = 0.0f
     }
 
@@ -107,8 +92,7 @@ class GameScreen (game: GameMain) extends Screen {
     } else {
       camera.translate(-Speed, 0, 0)
       camera.position.z = playerZ
-      //playerModelInstance.transform.setTranslation(
-      //playerModelInstance.transform.val[Matrix4.M22] = playerZ
+      playerModelInstance.transform.`val`(Matrix4.M23) = playerZ
       camera.update()
     }
 
