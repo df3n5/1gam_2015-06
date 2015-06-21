@@ -22,14 +22,20 @@ import com.badlogic.gdx.math.Vector3
 import com.badlogic.gdx.math.Matrix4 
 import com.badlogic.gdx.assets.AssetManager 
 import com.badlogic.gdx.graphics.g3d.Model 
+import com.badlogic.gdx.utils.Timer.Task
+import com.badlogic.gdx.utils.{Timer, TimeUtils}
 
 class GameScreen (game: GameMain) extends Screen {
   //Config
   val ColorStretchLength = 100.0f
   val ItemXDistance = 100.0f
-  val Speed = 1.0f
+  var Speed = 1.0f
   val DebugCamera = false
   val MovementAmount = 10.0f
+  val CollisionAllowanceZ = 2.0f
+  val CollisionAllowanceX = 2.0f
+  val CollisionAllowanceFastZ = 3.0f
+  val CollisionAllowanceFastX = 20.0f
 
   lazy val camera = new PerspectiveCamera(90, Gdx.graphics.getWidth(), Gdx.graphics.getHeight())
   camera.position.set(10f, 5f, 0f)
@@ -60,7 +66,7 @@ class GameScreen (game: GameMain) extends Screen {
     groundModels += blueGroundModelInstance
     groundModels += redGroundModelInstance
   }
-  lazy val itemModelIns = ArrayBuffer[ModelInstance]()
+  var itemModelIns = ArrayBuffer[ModelInstance]()
 
   lazy val modelBatch = new ModelBatch()
   lazy val environment = new Environment()
@@ -78,6 +84,7 @@ class GameScreen (game: GameMain) extends Screen {
   }
   var playerZ = 0.0f
   Gdx.gl.glClearColor(135/255f, 206/255f, 235/255f, 1)
+  var warp9 = false
 
   def doneLoading() : Unit = {
     println("Finished loading")
@@ -116,6 +123,7 @@ class GameScreen (game: GameMain) extends Screen {
         playerModelInstance.transform.`val`(Matrix4.M23) = playerZ
         camera.update()
       }
+      collisionDetectAndResolve
 
       //camera.update()
       Gdx.gl.glViewport(0, 0, Gdx.graphics.getWidth(), Gdx.graphics.getHeight())
@@ -132,6 +140,53 @@ class GameScreen (game: GameMain) extends Screen {
       }
       modelBatch.end()
     }
+  }
+
+  def collisionDetectAndResolve(): Unit = {
+      val newItemModelIns = ArrayBuffer[ModelInstance]()
+
+      itemModelIns.foreach { case model =>
+        //println(s"model.transform ${model.transform}")
+        val playerZ = playerModelInstance.transform.`val`(Matrix4.M23)
+        val itemModelZ = model.transform.`val`(Matrix4.M23)
+        val zDelta = Math.abs(playerZ - itemModelZ)
+
+        val playerX = playerModelInstance.transform.`val`(Matrix4.M03)
+        val itemModelX = model.transform.`val`(Matrix4.M03)
+        val xDelta = Math.abs(playerX - itemModelX)
+        val collisionAllowanceZ = warp9 match {
+          case true => CollisionAllowanceFastZ
+          case false => CollisionAllowanceZ
+        }
+        val collisionAllowanceX = warp9 match {
+          case true => CollisionAllowanceFastX
+          case false => CollisionAllowanceX
+        }
+        if((zDelta < collisionAllowanceZ) && (xDelta < collisionAllowanceX)) {
+          println(s"Collision ${xDelta} ${zDelta}")
+          warpNineEngage
+          Timer.instance.clear
+          Timer.schedule(new Task {
+            override def run(): Unit = { 
+              warpSixEngage
+            }
+          }, 1.0f)
+
+        } else {
+          newItemModelIns += model
+        }
+      }
+      itemModelIns = newItemModelIns
+  }
+
+  def warpSixEngage(): Unit = {
+    Speed = 1.0f
+    warp9 = false
+  }
+
+  def warpNineEngage(): Unit = {
+    Speed = 10.0f
+    warp9 = true
   }
 
   def dispose(): Unit = {
