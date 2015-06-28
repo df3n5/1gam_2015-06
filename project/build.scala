@@ -54,6 +54,7 @@ object Settings {
     fork in Compile := true,
     unmanagedResourceDirectories in Compile += file("desktop/assets"),
     desktopJarName := "ludum-dare-skeleton",
+    unmanagedBase := baseDirectory.value / "custom_lib",
     Tasks.assembly
   )
 

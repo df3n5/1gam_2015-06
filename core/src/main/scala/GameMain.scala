@@ -1,13 +1,10 @@
 package game
 
 import com.badlogic.gdx.{Gdx, Game}
-import com.badlogic.gdx.graphics.g2d.{BitmapFont, SpriteBatch}
 
 class GameMain extends Game {
-  lazy val batch = new SpriteBatch()
-  lazy val font = new BitmapFont()
-  val width = 800;
-  val height = 600;
+  //val width = 800;
+  //val height = 600;
 
   override def create() {
     //setScreen(new MainMenuScreen(this))
@@ -21,7 +18,5 @@ class GameMain extends Game {
   }
 
   override def dispose() {
-    batch.dispose()
-    font.dispose()
   }
 }

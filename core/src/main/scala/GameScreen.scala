@@ -4,8 +4,9 @@ import scala.collection.mutable.ArrayBuffer
 
 import com.badlogic.gdx.Input.Keys
 import com.badlogic.gdx.graphics.Texture.TextureFilter
+import com.badlogic.gdx.graphics.g2d.{BitmapFont, SpriteBatch}
 import com.badlogic.gdx.graphics.g2d.TextureRegion
-import com.badlogic.gdx.graphics.{Texture, GL20, PerspectiveCamera}
+import com.badlogic.gdx.graphics.{Texture, GL20, PerspectiveCamera, OrthographicCamera}
 import com.badlogic.gdx.{Gdx, Screen}
 import com.badlogic.gdx.graphics.g3d.utils.ModelBuilder
 import com.badlogic.gdx.graphics.g3d.Material
@@ -26,18 +27,29 @@ import com.badlogic.gdx.utils.Timer.Task
 import com.badlogic.gdx.utils.{Timer, TimeUtils}
 
 class GameScreen (game: GameMain) extends Screen {
-  //Config
+  // config
   val ColorStretchLength = 100.0f
-  val ItemXDistance = 100.0f
+  val ItemXDistance = 600.0f
+  val PointXDistance = 100.0f
   var Speed = 1.0f
   val DebugCamera = false
   val MovementAmount = 10.0f
   val CollisionAllowanceZ = 2.0f
-  val CollisionAllowanceX = 2.0f
+  val CollisionAllowanceX = 5.0f
   val CollisionAllowanceFastZ = 3.0f
   val CollisionAllowanceFastX = 20.0f
+  val PointsPerSphere = 100
+  val TotalTime = 31.0f
+  //val TotalTime = 1.0f
+  val FOV = 90.0f
 
-  lazy val camera = new PerspectiveCamera(90, Gdx.graphics.getWidth(), Gdx.graphics.getHeight())
+  // game state
+  var points = 0
+  var playerZ = 0.0f
+  var warp9 = false
+  var timeLeft = TotalTime
+
+  lazy val camera = new PerspectiveCamera(FOV, Gdx.graphics.getWidth(), Gdx.graphics.getHeight())
   camera.position.set(10f, 5f, 0f)
   camera.lookAt(0, 0, 0)
   camera.near = 1f
@@ -67,6 +79,7 @@ class GameScreen (game: GameMain) extends Screen {
     groundModels += redGroundModelInstance
   }
   var itemModelIns = ArrayBuffer[ModelInstance]()
+  var pointModelIns = ArrayBuffer[ModelInstance]()
 
   lazy val modelBatch = new ModelBatch()
   lazy val environment = new Environment()
@@ -82,9 +95,19 @@ class GameScreen (game: GameMain) extends Screen {
   if(DebugCamera) {
     Gdx.input.setInputProcessor(camController)
   }
-  var playerZ = 0.0f
   Gdx.gl.glClearColor(135/255f, 206/255f, 235/255f, 1)
-  var warp9 = false
+
+  lazy val batch = new SpriteBatch()
+  lazy val font = new BitmapFont(Gdx.files.internal("test2.fnt"))
+  //lazy val generator = new FreeTypeFontGenerator(Gdx.files.internal("fonts/myfont.ttf"))
+  //lazy val font = generator.generateFont(12); // font size 12 pixels
+  //BitmapFont font25 = generator.generateFont(25); // font size 25 pixels
+  //generator.dispose(); // don't forget to dispose to avoid memory leaks!
+
+  lazy val camera2D = new OrthographicCamera(Gdx.graphics.getWidth(), Gdx.graphics.getHeight());
+  camera2D.update()
+  println("Init")
+
 
   def doneLoading() : Unit = {
     println("Finished loading")
@@ -92,10 +115,24 @@ class GameScreen (game: GameMain) extends Screen {
     //itemInstance = new ModelInstance(model, "item")
     for (i <- 0 to 100) {
       itemInstance = new ModelInstance(model, "item")
+      if((i % 2) == 0 ) {
+        itemInstance.transform.setToTranslation(-ItemXDistance * i, 0, 9.0f)
+      }
+      if((i % 2) == 1) {
+        itemInstance.transform.setToTranslation(-ItemXDistance * i, 0, -11.0f)
+      }
       //itemInstance.transform.setToTranslation(-ItemXDistance * i, 0, -1.0f)
       //itemInstance.transform.setToTranslation(-ItemXDistance * i, 0, -11.0f)
-      itemInstance.transform.setToTranslation(-ItemXDistance * i, 0, 9.0f)
       itemModelIns += itemInstance
+    }
+
+    for (i <- 0 to 100) {
+      itemInstance = new ModelInstance(model, "item")
+      //itemInstance.transform.setToTranslation(-ItemXDistance * i, 0, -1.0f)
+      //itemInstance.transform.setToTranslation(-ItemXDistance * i, 0, -11.0f)
+      itemInstance.transform.setToTranslation(-PointXDistance * i, 0, -1.0f)
+      itemInstance.materials.get(0).set(ColorAttribute.createDiffuse(Color.GREEN))
+      pointModelIns += itemInstance
     }
     loading = false
   }
@@ -104,6 +141,10 @@ class GameScreen (game: GameMain) extends Screen {
     if (loading) { 
       if(assets.update()) doneLoading()
     } else {
+      timeLeft -= delta
+      if(timeLeft < 0.0f) {
+          game.setScreen(new GameOverScreen(game, points))
+      }
 
       if(Gdx.input.isKeyPressed(Keys.D) && !Gdx.input.isKeyPressed(Keys.A)) {
         playerZ  = -MovementAmount
@@ -134,11 +175,23 @@ class GameScreen (game: GameMain) extends Screen {
       itemModelIns.foreach { case model =>
         modelBatch.render(model, environment)
       }
+      pointModelIns.foreach { case model =>
+        modelBatch.render(model, environment)
+      }
       modelBatch.render(playerModelInstance, environment)
       groundModels.foreach { case model =>
         modelBatch.render(model, environment)
       }
       modelBatch.end()
+
+      batch.setProjectionMatrix(camera2D.combined);
+      batch.begin()
+      val x1 = -Gdx.graphics.getWidth()*0.05f
+      val x2 = -Gdx.graphics.getWidth()*0.086f
+      font.draw(batch, s"Score : $points", x1, -Gdx.graphics.getHeight()*0.25f)
+      val intTime :Int = timeLeft.toInt
+      font.draw(batch, s"Time left : ${intTime}", x2, -Gdx.graphics.getHeight()*0.33f)
+      batch.end()
     }
   }
 
@@ -177,6 +230,34 @@ class GameScreen (game: GameMain) extends Screen {
         }
       }
       itemModelIns = newItemModelIns
+
+      // Resolve points now
+      val newPointModelIns = ArrayBuffer[ModelInstance]()
+      pointModelIns.foreach { case model =>
+        //println(s"model.transform ${model.transform}")
+        val playerZ = playerModelInstance.transform.`val`(Matrix4.M23)
+        val pointModelZ = model.transform.`val`(Matrix4.M23)
+        val zDelta = Math.abs(playerZ - pointModelZ)
+
+        val playerX = playerModelInstance.transform.`val`(Matrix4.M03)
+        val pointModelX = model.transform.`val`(Matrix4.M03)
+        val xDelta = Math.abs(playerX - pointModelX)
+        val collisionAllowanceZ = warp9 match {
+          case true => CollisionAllowanceFastZ
+          case false => CollisionAllowanceZ
+        }
+        val collisionAllowanceX = warp9 match {
+          case true => CollisionAllowanceFastX
+          case false => CollisionAllowanceX
+        }
+        if((zDelta < collisionAllowanceZ) && (xDelta < collisionAllowanceX)) {
+          points += PointsPerSphere
+          println(s"Collision with points , now have ${points}")
+        } else {
+          newPointModelIns += model
+        }
+      }
+      pointModelIns = newPointModelIns
   }
 
   def warpSixEngage(): Unit = {
