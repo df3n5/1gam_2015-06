@@ -37,7 +37,8 @@ class GameScreen (game: GameMain) extends Screen {
   val CollisionAllowanceZ = 2.0f
   val CollisionAllowanceX = 5.0f
   val CollisionAllowanceFastZ = 3.0f
-  val CollisionAllowanceFastX = 20.0f
+  val CollisionAllowanceFastX = 50.0f
+  val StartDistance = 500.0f
   val PointsPerSphere = 100
   val TotalTime = 31.0f
   //val TotalTime = 1.0f
@@ -50,6 +51,10 @@ class GameScreen (game: GameMain) extends Screen {
   var timeLeft = TotalTime
 
   lazy val camera = new PerspectiveCamera(FOV, Gdx.graphics.getWidth(), Gdx.graphics.getHeight())
+  val w = Gdx.graphics.getWidth
+  val h = Gdx.graphics.getHeight
+  println(s"width : $w, height is $h")
+
   camera.position.set(10f, 5f, 0f)
   camera.lookAt(0, 0, 0)
   camera.near = 1f
@@ -108,29 +113,32 @@ class GameScreen (game: GameMain) extends Screen {
   camera2D.update()
   println("Init")
 
+  lazy val bgMusic = Gdx.audio.newMusic(Gdx.files.internal("mainloop.ogg"))
 
   def doneLoading() : Unit = {
     println("Finished loading")
+    bgMusic.setLooping(true)
+    bgMusic.play
     val model = assets.get("item.g3db", classOf[Model])
     //itemInstance = new ModelInstance(model, "item")
     for (i <- 0 to 100) {
       itemInstance = new ModelInstance(model, "item")
       if((i % 2) == 0 ) {
-        itemInstance.transform.setToTranslation(-ItemXDistance * i, 0, 9.0f)
+        itemInstance.transform.setToTranslation((-ItemXDistance * i) + StartDistance, 0, 9.0f)
       }
       if((i % 2) == 1) {
-        itemInstance.transform.setToTranslation(-ItemXDistance * i, 0, -11.0f)
+        itemInstance.transform.setToTranslation((-ItemXDistance * i) + StartDistance, 0, -11.0f)
       }
       //itemInstance.transform.setToTranslation(-ItemXDistance * i, 0, -1.0f)
       //itemInstance.transform.setToTranslation(-ItemXDistance * i, 0, -11.0f)
       itemModelIns += itemInstance
     }
 
-    for (i <- 0 to 100) {
+    for (i <- 0 to 1000) {
       itemInstance = new ModelInstance(model, "item")
       //itemInstance.transform.setToTranslation(-ItemXDistance * i, 0, -1.0f)
       //itemInstance.transform.setToTranslation(-ItemXDistance * i, 0, -11.0f)
-      itemInstance.transform.setToTranslation(-PointXDistance * i, 0, -1.0f)
+      itemInstance.transform.setToTranslation((-PointXDistance * i) + StartDistance, 0, -1.0f)
       itemInstance.materials.get(0).set(ColorAttribute.createDiffuse(Color.GREEN))
       pointModelIns += itemInstance
     }
@@ -143,6 +151,7 @@ class GameScreen (game: GameMain) extends Screen {
     } else {
       timeLeft -= delta
       if(timeLeft < 0.0f) {
+          bgMusic.stop
           game.setScreen(new GameOverScreen(game, points))
       }
 
@@ -178,6 +187,7 @@ class GameScreen (game: GameMain) extends Screen {
       pointModelIns.foreach { case model =>
         modelBatch.render(model, environment)
       }
+
       modelBatch.render(playerModelInstance, environment)
       groundModels.foreach { case model =>
         modelBatch.render(model, environment)
@@ -188,9 +198,9 @@ class GameScreen (game: GameMain) extends Screen {
       batch.begin()
       val x1 = -Gdx.graphics.getWidth()*0.05f
       val x2 = -Gdx.graphics.getWidth()*0.086f
-      font.draw(batch, s"Score : $points", x1, -Gdx.graphics.getHeight()*0.25f)
+      font.draw(batch, s"Score : $points", x1, Gdx.graphics.getHeight()*0.45f)
       val intTime :Int = timeLeft.toInt
-      font.draw(batch, s"Time left : ${intTime}", x2, -Gdx.graphics.getHeight()*0.33f)
+      font.draw(batch, s"Time left : ${intTime}", x2, Gdx.graphics.getHeight()*0.35f)
       batch.end()
     }
   }
@@ -223,7 +233,7 @@ class GameScreen (game: GameMain) extends Screen {
             override def run(): Unit = { 
               warpSixEngage
             }
-          }, 1.0f)
+          }, 2.0f)
 
         } else {
           newItemModelIns += model
@@ -263,16 +273,20 @@ class GameScreen (game: GameMain) extends Screen {
   def warpSixEngage(): Unit = {
     Speed = 1.0f
     warp9 = false
+    playerModelInstance.materials.get(0).set(ColorAttribute.createDiffuse(Color.GREEN))
   }
 
   def warpNineEngage(): Unit = {
     Speed = 10.0f
     warp9 = true
+    playerModelInstance.materials.get(0).set(ColorAttribute.createDiffuse(Color.ORANGE))
   }
 
   def dispose(): Unit = {
-    modelBatch.dispose()
-    playerModel.dispose()
+    bgMusic.stop
+    bgMusic.dispose
+    modelBatch.dispose
+    playerModel.dispose
   }
   def hide(): Unit = {}
   def pause(): Unit = {}

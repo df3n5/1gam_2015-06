@@ -3,8 +3,8 @@ package game
 import com.badlogic.gdx.{Gdx, Game}
 
 class GameMain extends Game {
-  //val width = 800;
-  //val height = 600;
+  val width = 20;
+  val height = 20;
 
   override def create() {
     //setScreen(new MainMenuScreen(this))
